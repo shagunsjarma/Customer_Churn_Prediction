@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Churn Prediction</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .form-container {
+            padding: 40px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        .form-group input[type="number"]::-webkit-outer-spin-button,
+        .form-group input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: block;
+            margin: 0 auto;
+            min-width: 200px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-container {
+            margin-top: 30px;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            display: none;
+        }
+
+        .result-container.show {
+            display: block;
+        }
+
+        .result-container.high-risk {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+        }
+
+        .result-container.low-risk {
+            background: linear-gradient(135deg, #51cf66, #40c057);
+            color: white;
+        }
+
+        .result-container.neutral {
+            background: linear-gradient(135deg, #ffd43b, #fab005);
+            color: #333;
+        }
+
+        .result-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .result-description {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .field-description {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .form-container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Customer Churn Prediction</h1>
+            <p>Predict customer churn risk using advanced machine learning</p>
+        </div>
+        
+        <div class="form-container">
+            <form id="churnForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="age">Age *</label>
+                        <input type="number" id="age" name="age" min="18" max="100" required>
+                        <div class="field-description">Customer's age in years</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="gender">Gender *</label>
+                        <select id="gender" name="gender" required>
+                            <option value="">Select Gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="tenure">Tenure (Months) *</label>
+                        <input type="number" id="tenure" name="tenure" min="0" max="120" step="0.1" required>
+                        <div class="field-description">Number of months as customer</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="usage_frequency">Usage Frequency *</label>
+                        <input type="number" id="usage_frequency" name="usage_frequency" min="0" max="50" step="0.1" required>
+                        <div class="field-description">How often customer uses the service (per month)</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="support_calls">Support Calls *</label>
+                        <input type="number" id="support_calls" name="support_calls" min="0" max="50" step="0.1" required>
+                        <div class="field-description">Number of support calls made</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="payment_delay">Payment Delay (Days) *</label>
+                        <input type="number" id="payment_delay" name="payment_delay" min="0" max="90" step="0.1" required>
+                        <div class="field-description">Average days of payment delay</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="subscription_type">Subscription Type *</label>
+                        <select id="subscription_type" name="subscription_type" required>
+                            <option value="">Select Subscription Type</option>
+                            <option value="Basic">Basic</option>
+                            <option value="Standard">Standard</option>
+                            <option value="Premium">Premium</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="contract_length">Contract Length *</label>
+                        <select id="contract_length" name="contract_length" required>
+                            <option value="">Select Contract Length</option>
+                            <option value="Monthly">Monthly</option>
+                            <option value="Quarterly">Quarterly</option>
+                            <option value="Annual">Annual</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="total_spend">Total Spend ($) *</label>
+                        <input type="number" id="total_spend" name="total_spend" min="0" max="10000" step="0.01" required>
+                        <div class="field-description">Total amount spent by customer</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="last_interaction">Last Interaction (Days) *</label>
+                        <input type="number" id="last_interaction" name="last_interaction" min="0" max="365" step="0.1" required>
+                        <div class="field-description">Days since last customer interaction</div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    Predict Churn Risk
+                </button>
+            </form>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Analyzing customer data...</p>
+            </div>
+            
+            <div class="error-message" id="errorMessage">
+                <strong>Error:</strong> <span id="errorText"></span>
+            </div>
+            
+            <div class="result-container" id="resultContainer">
+                <div class="result-title" id="resultTitle"></div>
+                <div class="result-description" id="resultDescription"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('churnForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+            const errorMessage = document.getElementById('errorMessage');
+            const resultContainer = document.getElementById('resultContainer');
+            
+            // Hide previous results and errors
+            errorMessage.classList.remove('show');
+            resultContainer.classList.remove('show');
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            loading.classList.add('show');
+            
+            try {
+                // Collect form data
+                const formData = new FormData(this);
+                const data = {
+                    Age: parseFloat(formData.get('age')),
+                    Gender: formData.get('gender'),
+                    Tenure: parseFloat(formData.get('tenure')),
+                    Usage_Frequency: parseFloat(formData.get('usage_frequency')),
+                    Support_Calls: parseFloat(formData.get('support_calls')),
+                    Payment_Delay: parseFloat(formData.get('payment_delay')),
+                    Subscription_Type: formData.get('subscription_type'),
+                    Contract_Length: formData.get('contract_length'),
+                    Total_Spend: parseFloat(formData.get('total_spend')),
+                    Last_Interaction: parseFloat(formData.get('last_interaction'))
+                };
+                
+                // Make API call to predict endpoint
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                // Display results
+                displayResult(result);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Failed to get prediction. Please try again.');
+            } finally {
+                // Hide loading state
+                submitBtn.disabled = false;
+                loading.classList.remove('show');
+            }
+        });
+        
+        function displayResult(result) {
+            const resultContainer = document.getElementById('resultContainer');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultDescription = document.getElementById('resultDescription');
+            
+            // Remove all risk classes
+            resultContainer.classList.remove('high-risk', 'low-risk', 'neutral');
+            
+            // Determine risk level and display appropriate message
+            const prediction = result.prediction || result[0];
+            const probability = result.probability || result[1] || 0.5;
+            
+            if (prediction === 1 || prediction === '1') {
+                // High churn risk
+                resultContainer.classList.add('high-risk');
+                resultTitle.textContent = '⚠️ High Churn Risk Detected';
+                resultDescription.textContent = `This customer has a ${(probability * 100).toFixed(1)}% probability of churning. Immediate intervention recommended.`;
+            } else {
+                // Low churn risk
+                resultContainer.classList.add('low-risk');
+                resultTitle.textContent = '✅ Low Churn Risk';
+                resultDescription.textContent = `This customer has a ${((1 - probability) * 100).toFixed(1)}% probability of staying. Continue current engagement strategy.`;
+            }
+            
+            resultContainer.classList.add('show');
+        }
+        
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            const errorText = document.getElementById('errorText');
+            errorText.textContent = message;
+            errorMessage.classList.add('show');
+        }
+        
+        // Add some sample data for testing (optional)
+        function fillSampleData() {
+            document.getElementById('age').value = '35';
+            document.getElementById('gender').value = 'Female';
+            document.getElementById('tenure').value = '24';
+            document.getElementById('usage_frequency').value = '15';
+            document.getElementById('support_calls').value = '3';
+            document.getElementById('payment_delay').value = '5';
+            document.getElementById('subscription_type').value = 'Standard';
+            document.getElementById('contract_length').value = 'Monthly';
+            document.getElementById('total_spend').value = '850';
+            document.getElementById('last_interaction').value = '10';
+        }
+        
+        // Uncomment the line below to add sample data button for testing
+        // fillSampleData();
+    </script>
+</body>
+</html>

@@ -246,12 +246,21 @@ def model_info():
     Get information about the trained model
     """
     try:
-        predict_pipeline = PredictPipeline()
+        # Check if user wants to use MLflow model
+        use_mlflow = request.args.get('use_mlflow', 'false').lower() == 'true'
+        model_version = request.args.get('version', None)
+        
+        if use_mlflow:
+            predict_pipeline = PredictPipeline(use_mlflow_model=True, model_version=model_version)
+        else:
+            predict_pipeline = PredictPipeline()
         
         # Try to get model information
         model_info = {
             'model_type': type(predict_pipeline.model).__name__,
             'preprocessor_type': type(predict_pipeline.preprocessor).__name__,
+            'model_source': 'MLflow' if use_mlflow else 'Local',
+            'model_version': model_version if use_mlflow else 'N/A',
             'features': [
                 'Age', 'Gender', 'Tenure', 'Usage_Frequency', 'Support_Calls',
                 'Payment_Delay', 'Subscription_Type', 'Contract_Length', 
@@ -262,6 +271,89 @@ def model_info():
         return jsonify(model_info), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/predict_mlflow', methods=['POST'])
+def predict_mlflow():
+    """
+    Prediction endpoint using MLflow model
+    """
+    try:
+        # Get JSON data from request
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Validate required fields
+        required_fields = [
+            'Age', 'Gender', 'Tenure', 'Usage_Frequency', 'Support_Calls',
+            'Payment_Delay', 'Subscription_Type', 'Contract_Length', 
+            'Total_Spend', 'Last_Interaction'
+        ]
+        
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            return jsonify({
+                'error': f'Missing required fields: {", ".join(missing_fields)}'
+            }), 400
+        
+        # Validate data types and ranges
+        validation_errors = validate_input_data(data)
+        if validation_errors:
+            return jsonify({'error': validation_errors}), 400
+        
+        # Get model version from request
+        model_version = data.get('model_version', None)
+        
+        # Create CustomData object
+        custom_data = CustomData(
+            Age=float(data['Age']),
+            Gender=str(data['Gender']),
+            Tenure=float(data['Tenure']),
+            Usage_Frequency=float(data['Usage_Frequency']),
+            Support_Calls=float(data['Support_Calls']),
+            Payment_Delay=float(data['Payment_Delay']),
+            Subscription_Type=str(data['Subscription_Type']),
+            Contract_Length=str(data['Contract_Length']),
+            Total_Spend=float(data['Total_Spend']),
+            Last_Interaction=float(data['Last_Interaction'])
+        )
+        
+        # Get data as DataFrame
+        df = custom_data.get_data_as_dataframe()
+        
+        # Initialize prediction pipeline with MLflow model
+        predict_pipeline = PredictPipeline(use_mlflow_model=True, model_version=model_version)
+        
+        # Make prediction with probability
+        prediction, probabilities = predict_pipeline.predict_with_probability(df)
+        
+        # Get prediction probability
+        if probabilities is not None:
+            probability = float(probabilities[0][1])  # Probability of churn (class 1)
+        else:
+            probability = 0.8 if prediction[0] == 1 else 0.2
+        
+        # Prepare response
+        result = {
+            'prediction': int(prediction[0]),
+            'probability': float(probability),
+            'churn_risk': 'High' if prediction[0] == 1 else 'Low',
+            'message': get_churn_message(prediction[0], probability),
+            'model_source': 'MLflow',
+            'model_version': model_version or 'latest'
+        }
+        
+        logging.info(f"MLflow prediction made: {result}")
+        return jsonify(result)
+        
+    except CustomException as e:
+        logging.error(f"Custom exception in MLflow predict route: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+    except Exception as e:
+        logging.error(f"Unexpected error in MLflow predict route: {str(e)}")
+        logging.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({'error': 'An unexpected error occurred during prediction'}), 500
 
 @app.errorhandler(404)
 def not_found(error):

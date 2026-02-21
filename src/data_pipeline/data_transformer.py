@@ -2,6 +2,7 @@ import sys
 from src.utils.exception import CustomException
 from src.utils.logger import logging
 from src.utils.save_model import save_object
+from src.utils.mlflow_config import MLflowConfig
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
+from datetime import datetime
 
 
 class DataTransformationConfig:
@@ -19,6 +21,7 @@ class DataTransformationConfig:
 class DataTransformation:
     def __init__(self):
         self.data_transformation_config = DataTransformationConfig()
+        self.mlflow_config = MLflowConfig()
         
     def get_data_transformer_object(self):
         categorical_cols = ["Gender", "Contract Length", "Subscription Type"]
@@ -56,10 +59,31 @@ class DataTransformation:
             train_arr = np.c_[input_feature_train_arr, np.array(target_feature_train_df)]
             test_arr = np.c_[input_feature_test_arr, np.array(target_feature_test_df)]
             logging.info("Saved preprocessing object")
+            
+            # Save preprocessor locally (existing functionality)
             save_object(
                 file_path=self.data_transformation_config.data_transformation_config_file_path,
                 obj=processing
             )
+            
+            # Log preprocessor to MLflow (optional - can be done in training pipeline)
+            # Uncomment the following lines if you want to log preprocessor separately
+            # with self.mlflow_config.start_run(run_name=f"preprocessor_training_{datetime.now().strftime('%Y%m%d_%H%M%S')}"):
+            #     self.mlflow_config.log_preprocessor(
+            #         preprocessor=processing,
+            #         preprocessor_name="churn_prediction_preprocessor"
+            #     )
+            #     # Log transformation parameters
+            #     transform_params = {
+            #         "categorical_columns": ["Gender", "Contract Length", "Subscription Type"],
+            #         "numerical_columns": ["Age", "Tenure", "Usage Frequency", "Support Calls", "Payment Delay", "Total Spend", "Last Interaction"],
+            #         "imputation_strategy_numerical": "median",
+            #         "imputation_strategy_categorical": "most_frequent",
+            #         "scaling_method": "StandardScaler",
+            #         "encoding_method": "OneHotEncoder"
+            #     }
+            #     self.mlflow_config.log_model_parameters(transform_params)
+            
             return (
                 train_arr,
                 test_arr,

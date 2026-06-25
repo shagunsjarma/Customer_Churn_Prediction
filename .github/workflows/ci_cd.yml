@@ -25,22 +25,22 @@ jobs:
         
     - name: Run Data Pipeline
       run: |
-        # Run data ingestion to generate artifacts needed for tests
-        python src/data_pipeline/data_ingestion.py
+        # Run data pipeline to train model and generate artifacts
+        PYTHONPATH=. python src/models/trainer_pipeline.py
         
     - name: Run Tests
       run: |
         # Run the integration tests
-        python test_mlflow_integration.py
+        PYTHONPATH=. python test_mlflow_integration.py
         
         # Start the Flask app in the background
-        python app.py &
+        PYTHONPATH=. python app.py &
         
         # Wait for the app to start
         sleep 5
         
         # Run API integration tests
-        python test_api.py
+        PYTHONPATH=. python test_api.py
         
   docker-build:
     needs: build-and-test

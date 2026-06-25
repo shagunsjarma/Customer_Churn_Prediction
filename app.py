@@ -3,6 +3,9 @@ import os
 import sys
 import pandas as pd
 import numpy as np
+from dotenv import load_dotenv
+
+load_dotenv()
 from src.models.predict_pipeline import PredictPipeline, CustomData
 from src.utils.exception import CustomException
 from src.utils.logger import logging
@@ -235,9 +238,10 @@ def health_check():
                 'message': 'Model or preprocessor files not found'
             }), 503
     except Exception as e:
+        logging.error(f"Health check error: {str(e)}")
         return jsonify({
             'status': 'unhealthy',
-            'error': str(e)
+            'error': 'An unexpected error occurred during health check'
         }), 500
 
 @app.route('/model_info', methods=['GET'])
@@ -270,7 +274,8 @@ def model_info():
         
         return jsonify(model_info), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logging.error(f"Model info error: {str(e)}")
+        return jsonify({'error': 'An unexpected error occurred while fetching model info'}), 500
 
 @app.route('/predict_mlflow', methods=['POST'])
 def predict_mlflow():
@@ -388,4 +393,6 @@ if __name__ == '__main__':
     
     # Run the Flask app
     logging.info("Starting Flask application...")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    port = int(os.getenv('PORT', 5000))
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)

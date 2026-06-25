@@ -33,6 +33,15 @@ jobs:
         # Run the integration tests
         python test_mlflow_integration.py
         
+        # Start the Flask app in the background
+        python app.py &
+        
+        # Wait for the app to start
+        sleep 5
+        
+        # Run API integration tests
+        python test_api.py
+        
   docker-build:
     needs: build-and-test
     runs-on: ubuntu-latest

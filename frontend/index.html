@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Churn Predictor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="background-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>Churn <span>Predictor</span></h1>
+            <p>Advanced MLOps Intelligence</p>
+        </header>
+
+        <main class="dashboard">
+            <section class="form-section glass-panel">
+                <h2>Customer Profile</h2>
+                <form id="prediction-form">
+                    <div class="form-grid">
+                        <div class="input-group">
+                            <label for="Age">Age</label>
+                            <input type="number" id="Age" name="Age" value="35" required min="18" max="100">
+                        </div>
+                        <div class="input-group">
+                            <label for="Gender">Gender</label>
+                            <select id="Gender" name="Gender" required>
+                                <option value="Female">Female</option>
+                                <option value="Male">Male</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="Tenure">Tenure (Months)</label>
+                            <input type="number" id="Tenure" name="Tenure" value="24" required min="0">
+                        </div>
+                        <div class="input-group">
+                            <label for="Usage_Frequency">Usage Frequency</label>
+                            <input type="number" id="Usage_Frequency" name="Usage_Frequency" value="15" required min="0">
+                        </div>
+                        <div class="input-group">
+                            <label for="Support_Calls">Support Calls</label>
+                            <input type="number" id="Support_Calls" name="Support_Calls" value="3" required min="0">
+                        </div>
+                        <div class="input-group">
+                            <label for="Payment_Delay">Payment Delay (Days)</label>
+                            <input type="number" id="Payment_Delay" name="Payment_Delay" value="5" required min="0">
+                        </div>
+                        <div class="input-group">
+                            <label for="Subscription_Type">Subscription Type</label>
+                            <select id="Subscription_Type" name="Subscription_Type" required>
+                                <option value="Standard">Standard</option>
+                                <option value="Basic">Basic</option>
+                                <option value="Premium">Premium</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="Contract_Length">Contract Length</label>
+                            <select id="Contract_Length" name="Contract_Length" required>
+                                <option value="Monthly">Monthly</option>
+                                <option value="Quarterly">Quarterly</option>
+                                <option value="Annual">Annual</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="Total_Spend">Total Spend ($)</label>
+                            <input type="number" id="Total_Spend" name="Total_Spend" value="850" required min="0">
+                        </div>
+                        <div class="input-group">
+                            <label for="Last_Interaction">Last Interaction (Days)</label>
+                            <input type="number" id="Last_Interaction" name="Last_Interaction" value="10" required min="0">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" id="submit-btn" class="glow-on-hover">
+                        <span>Analyze Risk</span>
+                        <div class="spinner hidden" id="loading-spinner"></div>
+                    </button>
+                </form>
+            </section>
+
+            <section class="result-section glass-panel">
+                <h2>Prediction Result</h2>
+                
+                <div id="result-display" class="idle">
+                    <div class="gauge-container">
+                        <svg viewBox="0 0 100 50" class="gauge">
+                            <path class="gauge-bg" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" />
+                            <path class="gauge-fill" id="gauge-fill" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke-dasharray="125.6" stroke-dashoffset="125.6" />
+                        </svg>
+                        <div class="gauge-value" id="probability-value">--%</div>
+                    </div>
+                    
+                    <div class="risk-badge" id="risk-badge">Awaiting Data</div>
+                    <p class="risk-message" id="risk-message">Enter customer details and analyze to see the AI prediction.</p>
+                    
+                    <div class="model-info">
+                        <span class="label">Served by:</span>
+                        <span class="value" id="model-variant">Unknown</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

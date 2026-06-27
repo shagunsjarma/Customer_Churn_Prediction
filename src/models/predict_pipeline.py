@@ -92,10 +92,36 @@ class PredictPipeline:
             raise CustomException(e, sys)
     
     def _log_prediction(self, features_df, predictions, probabilities=None):
-        """Log prediction details to MLflow"""
+        """Log prediction details to Database for drift detection"""
         try:
-            # This would typically log to MLflow for model monitoring
-            # For now, we'll just log basic info
+            from src.monitoring.database import SessionLocal, PredictionLog
+            
+            db = SessionLocal()
+            try:
+                for i in range(len(predictions)):
+                    row = features_df.iloc[i]
+                    prob = float(probabilities[i, 1]) if probabilities is not None else None
+                    
+                    db_log = PredictionLog(
+                        Age=float(row.get('Age', 0)),
+                        Gender=str(row.get('Gender', '')),
+                        Tenure=float(row.get('Tenure', 0)),
+                        Usage_Frequency=float(row.get('Usage Frequency', 0)),
+                        Support_Calls=float(row.get('Support Calls', 0)),
+                        Payment_Delay=float(row.get('Payment Delay', 0)),
+                        Subscription_Type=str(row.get('Subscription Type', '')),
+                        Contract_Length=str(row.get('Contract Length', '')),
+                        Total_Spend=float(row.get('Total Spend', 0)),
+                        Last_Interaction=float(row.get('Last Interaction', 0)),
+                        model_version=self.model_version,
+                        prediction=int(predictions[i]),
+                        probability=prob
+                    )
+                    db.add(db_log)
+                db.commit()
+            finally:
+                db.close()
+                
             prediction_info = {
                 "prediction_count": len(predictions),
                 "prediction_distribution": {
@@ -103,17 +129,13 @@ class PredictPipeline:
                     "churn_1": int(np.sum(predictions == 1))
                 }
             }
-            
             if probabilities is not None:
                 prediction_info["avg_churn_probability"] = float(np.mean(probabilities[:, 1]))
-            
-            # In a production system, you might want to log this to a separate MLflow run
-            # or to a monitoring system
-            print(f"Prediction logged: {prediction_info}")
+            print(f"Prediction logged to Database: {prediction_info}")
             
         except Exception as e:
             # Don't raise exception for logging failures
-            print(f"Warning: Could not log prediction to MLflow: {str(e)}")
+            print(f"Warning: Could not log prediction to Database: {str(e)}")
         
 class CustomData:
     def __init__(self, 

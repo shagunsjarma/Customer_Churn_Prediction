@@ -1,0 +1,44 @@
+name: Automated Drift Detection
+
+on:
+  schedule:
+    # Run at midnight every Sunday
+    - cron: '0 0 * * 0'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  detect-drift:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install evidently pandas sqlalchemy psycopg2-binary
+        
+    - name: Run Drift Detector
+      id: drift
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      run: |
+        PYTHONPATH=. python src/monitoring/drift_detector.py
+        
+    - name: Trigger Retraining
+      if: steps.drift.outputs.drift_detected == 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh workflow run retrain.yml -f reason="Automated trigger due to data drift"
+        
+    - name: Upload Drift Report
+      uses: actions/upload-artifact@v3
+      with:
+        name: drift-report
+        path: artifacts/drift_reports/data_drift_report.html

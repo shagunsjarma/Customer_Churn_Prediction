@@ -1,0 +1,91 @@
+name: Automated Retraining Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for retraining'
+        required: false
+        default: 'Manual trigger'
+
+jobs:
+  retrain-and-pr:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        
+    - name: Fetch Latest Data and Retrain
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        DAGSHUB_USER_TOKEN: ${{ secrets.DAGSHUB_USER_TOKEN }}
+        MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+        MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+      run: |
+        # Script to append new data and retrain
+        cat << 'EOF' > run_retrain.py
+        import os
+        import pandas as pd
+        from src.monitoring.database import engine
+        from datetime import datetime
+        
+        print("Fetching new data from predictions DB...")
+        try:
+            new_data = pd.read_sql("SELECT * FROM prediction_logs", con=engine)
+            if not new_data.empty:
+                print(f"Fetched {len(new_data)} new records.")
+                # We assume prediction is the ground truth for now (simulated)
+                new_data['Churn'] = new_data['prediction']
+                
+                # Drop DB specific columns
+                cols_to_drop = ['id', 'timestamp', 'model_version', 'prediction', 'probability']
+                new_data = new_data.drop(columns=[c for c in cols_to_drop if c in new_data.columns])
+                
+                # Append to master dataset
+                master_path = "datasets/customer_churn_dataset-training-master.csv"
+                master_df = pd.read_csv(master_path)
+                combined = pd.concat([master_df, new_data], ignore_index=True)
+                combined.to_csv(master_path, index=False)
+                print(f"Appended to master dataset. New size: {len(combined)}")
+            else:
+                print("No new data to append.")
+        except Exception as e:
+            print(f"Warning: Could not fetch new data: {e}")
+            
+        EOF
+        
+        # 1. Fetch new data
+        python run_retrain.py
+        
+        # 2. Run training pipeline to generate new artifacts
+        PYTHONPATH=. python src/models/trainer_pipeline.py
+        
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v5
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "Auto-retrain model due to data drift"
+        title: "🤖 Automated Model Retraining"
+        body: |
+          Automated model retraining triggered.
+          
+          **Reason:** ${{ github.event.inputs.reason || 'Data drift detected' }}
+          
+          This PR contains:
+          - Updated master dataset
+          - Newly generated `model.pkl` and `preprocessor.pkl` artifacts
+          
+          Please review the MLflow metrics before merging to deploy this to production.
+        branch: auto-retrain-${{ github.run_id }}
+        base: main

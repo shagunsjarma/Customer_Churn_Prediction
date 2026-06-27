@@ -33,8 +33,8 @@ jobs:
         # Run the integration tests
         PYTHONPATH=. python test_mlflow_integration.py
         
-        # Start the Flask app in the background
-        PYTHONPATH=. python app.py &
+        # Start the FastAPI app in the background
+        PYTHONPATH=. python -m uvicorn app:app --port 5000 &
         
         # Wait for the app to start
         sleep 5
@@ -42,7 +42,7 @@ jobs:
         # Run API integration tests
         PYTHONPATH=. python test_api.py
         
-  docker-build:
+  deploy:
     needs: build-and-test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -50,6 +50,30 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Build Docker image
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v2
+      
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Login to Azure Container Registry
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+        username: ${{ secrets.REGISTRY_USERNAME }}
+        password: ${{ secrets.REGISTRY_PASSWORD }}
+    
+    - name: Build and push Docker image
       run: |
-        docker build . --file Dockerfile --tag churn-prediction-app:latest
+        docker build . --file Dockerfile --tag ${{ secrets.REGISTRY_LOGIN_SERVER }}/churn-prediction-app:latest
+        docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/churn-prediction-app:latest
+        
+    - name: Terraform Init
+      run: terraform init
+      working-directory: terraform
+      
+    - name: Terraform Apply
+      run: terraform apply -auto-approve
+      working-directory: terraform
